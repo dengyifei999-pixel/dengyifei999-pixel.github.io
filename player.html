@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>十米以内 · 可播放原型</title>
+<style>
+  :root { --s: 1; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+  html,body { height:100%; background:#000; overflow:hidden;
+    font-family:-apple-system,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif; }
+  body { display:flex; align-items:center; justify-content:center; }
+
+  /* ---------- 手机外框 ---------- */
+  #phone { position:relative; width:390px; height:844px; border-radius:48px;
+    background:#000; overflow:hidden; transform:scale(var(--s));
+    box-shadow:0 0 0 3px #2a2a2c, 0 0 0 5px #111, 0 30px 80px rgba(0,0,0,.9); }
+  #notch { position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:118px; height:32px; background:#000; border-radius:20px; z-index:999; }
+
+  /* ---------- 状态栏 ---------- */
+  #statusbar { position:absolute; top:0; left:0; right:0; height:54px; z-index:900;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 32px 0 38px; pointer-events:none; color:#fff; transition:color .3s; }
+  #statusbar.light { color:#000; }
+  #sb-time { font-size:16px; font-weight:600; letter-spacing:.5px; }
+  #sb-icons { display:flex; align-items:center; gap:6px; font-size:12px; }
+  .sb-signal { display:flex; align-items:flex-end; gap:1.5px; height:11px; }
+  .sb-signal i { width:3px; background:currentColor; border-radius:1px; display:block; }
+  .sb-signal i:nth-child(1){height:4px} .sb-signal i:nth-child(2){height:6px}
+  .sb-signal i:nth-child(3){height:8px} .sb-signal i:nth-child(4){height:10px}
+  .sb-batt { width:24px; height:12px; border:1.5px solid currentColor; border-radius:3.5px;
+    position:relative; opacity:.9; }
+  .sb-batt::after { content:""; position:absolute; right:-4px; top:2.5px; width:2px; height:5px;
+    background:currentColor; border-radius:0 2px 2px 0; }
+  .sb-batt i { position:absolute; left:1.5px; top:1.5px; bottom:1.5px; width:30%;
+    background:#ff453a; border-radius:1.5px; display:block; }
+
+  /* ---------- 场景通用 ---------- */
+  .scene { position:absolute; inset:0; display:none; }
+  .scene.active { display:block; }
+  .navbar { position:absolute; top:54px; left:0; right:0; height:52px;
+    display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; }
+
+  /* ---------- 锁屏 ---------- */
+  #sc-lock { background:linear-gradient(180deg,#05070d 0%,#0a0f1c 45%,#04050a 100%);
+    transition:filter .8s; }
+  #sc-lock .lk-date { position:absolute; top:110px; width:100%; text-align:center;
+    color:#e8e8ec; font-size:19px; font-weight:500; }
+  #sc-lock .lk-time { position:absolute; top:132px; width:100%; text-align:center;
+    color:#f2f2f6; font-size:88px; font-weight:200; letter-spacing:1px; }
+  #sc-lock .lk-hint { position:absolute; bottom:118px; width:100%; text-align:center;
+    color:rgba(255,255,255,.55); font-size:13px; }
+  #sc-lock .lk-btns { position:absolute; bottom:44px; width:100%; display:flex;
+    justify-content:space-between; padding:0 44px; }
+  #sc-lock .lk-btn { width:48px; height:48px; border-radius:50%;
+    background:rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center; }
+  #sc-lock .lk-btn svg { width:22px; height:22px; stroke:#fff; fill:none; stroke-width:1.8; }
+  .homebar { position:absolute; bottom:9px; left:50%; transform:translateX(-50%);
+    width:134px; height:5px; border-radius:3px; background:rgba(255,255,255,.85); z-index:950; }
+  .homebar.dark { background:rgba(0,0,0,.75); }
+
+  /* ---------- AirDrop 横幅（全局浮层） ---------- */
+  #ad-banner { position:absolute; top:-170px; left:10px; right:10px; z-index:960;
+    background:rgba(38,38,42,.94); backdrop-filter:blur(20px); border-radius:22px;
+    padding:14px 16px; color:#fff; transition:top .45s cubic-bezier(.2,.9,.25,1.15);
+    box-shadow:0 12px 40px rgba(0,0,0,.5); }
+  #ad-banner.show { top:64px; }
+  #ad-banner .ad-row { display:flex; align-items:center; gap:12px; }
+  #ad-banner .ad-icon { width:38px; height:38px; border-radius:9px; flex:none;
+    background:conic-gradient(#ff9f0a,#ffd60a,#32d74b,#64d2ff,#bf5af2,#ff453a,#ff9f0a);
+    display:flex; align-items:center; justify-content:center; }
+  #ad-banner .ad-icon i { width:26px; height:26px; border-radius:6px; background:#fff; display:block; }
+  #ad-banner .ad-tt { font-size:15px; font-weight:600; }
+  #ad-banner .ad-sub { font-size:13px; color:#aeaeb2; margin-top:1px; }
+  #ad-banner .ad-thumb { width:44px; height:44px; border-radius:8px; margin-left:auto; flex:none;
+    background:linear-gradient(160deg,#3a3a3e,#17171a); position:relative; overflow:hidden; }
+  #ad-banner .ad-thumb::after { content:""; position:absolute; left:8px; bottom:8px;
+    width:28px; height:14px; background:linear-gradient(135deg,transparent 49%,#0c0c0e 50%);
+    transform:skewX(-12deg); opacity:.8; }
+  #ad-banner .ad-acts { display:flex; margin-top:12px; border-top:.5px solid rgba(255,255,255,.14); }
+  #ad-banner .ad-acts button { flex:1; background:none; border:none; padding:10px 0;
+    font-size:16px; color:#0a84ff; cursor:default; }
+  #ad-banner .ad-acts button:first-child { color:#ff453a; border-right:.5px solid rgba(255,255,255,.14); }
+  #ad-banner .ad-acts button.hit { background:rgba(255,255,255,.16); border-radius:10px; }
+
+  /* ---------- 照片查看器 ---------- */
+  #sc-photo { background:#000; }
+  #sc-photo canvas.shot { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #sc-photo .ph-top { position:absolute; top:54px; left:0; right:0; padding:14px 18px;
+    display:flex; justify-content:space-between; align-items:center; color:#fff;
+    background:linear-gradient(180deg,rgba(0,0,0,.55),transparent); }
+  #sc-photo .ph-top .back { font-size:17px; color:#0a84ff; }
+  #sc-photo .ph-meta { position:absolute; top:120px; width:100%; text-align:center; color:#fff; }
+  #sc-photo .ph-meta .d { font-size:19px; font-weight:600; }
+  #sc-photo .ph-meta .t { font-size:13px; color:rgba(255,255,255,.75); margin-top:3px; }
+  #sc-photo .ph-exif { position:absolute; left:0; right:0; bottom:-220px; padding:16px 20px 34px;
+    background:rgba(22,22,24,.96); border-radius:18px 18px 0 0; color:#fff;
+    transition:bottom .5s cubic-bezier(.2,.9,.3,1); font-size:14px; }
+  #sc-photo .ph-exif.show { bottom:0; }
+  #sc-photo .ph-exif .dev { font-size:16px; font-weight:600; margin-bottom:10px; }
+  #sc-photo .ph-exif .row { display:flex; justify-content:space-between; padding:7px 0;
+    border-top:.5px solid rgba(255,255,255,.1); color:#c7c7cc; }
+  #sc-photo .ph-exif .row b { color:#fff; font-weight:500; }
+
+  /* ---------- 微信 ---------- */
+  #sc-wechat { background:#ededed; }
+  #sc-wechat .navbar { background:#f7f7f7; border-bottom:.5px solid #d8d8d8; color:#111; }
+  #sc-wechat .navbar .back { position:absolute; left:16px; font-size:17px; font-weight:400; }
+  #wx-msgs { position:absolute; top:106px; left:0; right:0; bottom:56px;
+    padding:14px 14px 8px; overflow:hidden; }
+  .wx-time { text-align:center; font-size:12px; color:#9a9a9a; margin:6px 0 12px; }
+  .wx-msg { display:flex; margin-bottom:14px; align-items:flex-start; gap:9px; }
+  .wx-msg .av { width:40px; height:40px; border-radius:5px; flex:none; font-size:13px;
+    display:flex; align-items:center; justify-content:center; color:#fff; }
+  .wx-msg.l .av { background:#5b6b8c; }
+  .wx-msg.r { flex-direction:row-reverse; }
+  .wx-msg.r .av { background:#d8a24a; }
+  .wx-bub { max-width:236px; padding:10px 12px; font-size:16px; line-height:1.42;
+    border-radius:6px; position:relative; word-break:break-all; }
+  .wx-msg.l .wx-bub { background:#fff; color:#111; }
+  .wx-msg.r .wx-bub { background:#95ec69; color:#111; }
+  .wx-msg.l .wx-bub::before { content:""; position:absolute; left:-5px; top:13px;
+    border:5px solid transparent; border-right-color:#fff; border-left:none; }
+  .wx-msg.r .wx-bub::before { content:""; position:absolute; right:-5px; top:13px;
+    border:5px solid transparent; border-left-color:#95ec69; border-right:none; }
+  .wx-loc { width:220px; background:#fff; border-radius:6px; overflow:hidden; }
+  .wx-loc .map { height:96px; position:relative;
+    background:linear-gradient(150deg,#e8f0e4 0%,#dfe9f2 55%,#e9e9e9 100%); }
+  .wx-loc .map::before { content:""; position:absolute; left:-10px; top:38px; width:260px; height:14px;
+    background:rgba(255,255,255,.9); transform:rotate(-8deg); border-radius:4px; }
+  .wx-loc .map::after { content:""; position:absolute; left:40px; top:-6px; width:12px; height:120px;
+    background:rgba(255,255,255,.85); transform:rotate(14deg); border-radius:4px; }
+  .wx-loc .pin { position:absolute; left:118px; top:30px; width:16px; height:16px; z-index:2;
+    background:#fa5151; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    box-shadow:0 2px 5px rgba(0,0,0,.3); }
+  .wx-loc .pin::after { content:""; position:absolute; inset:4.5px; background:#fff; border-radius:50%; }
+  .wx-loc .txt { padding:8px 10px 10px; }
+  .wx-loc .txt .n { font-size:15px; color:#111; }
+  .wx-loc .txt .s { font-size:12px; color:#8b8b8b; margin-top:2px; }
+  .wx-typing .wx-bub { display:flex; gap:5px; padding:13px 14px; }
+  .wx-typing .wx-bub i { width:8px; height:8px; border-radius:50%; background:#b9b9b9;
+    animation:wxb 1s infinite; }
+  .wx-typing .wx-bub i:nth-child(2){animation-delay:.18s} .wx-typing .wx-bub i:nth-child(3){animation-delay:.36s}
+  @keyframes wxb { 0%,60%,100%{transform:none;opacity:.5} 30%{transform:translateY(-4px);opacity:1} }
+  #wx-inputbar { position:absolute; bottom:0; left:0; right:0; height:56px; background:#f7f7f7;
+    border-top:.5px solid #d8d8d8; display:flex; align-items:center; padding:0 12px; gap:10px; }
+  #wx-inputbar .mic { width:28px; height:28px; border:1.6px solid #555; border-radius:50%; flex:none; }
+  #wx-draft { flex:1; height:38px; background:#fff; border-radius:6px; padding:8px 10px;
+    font-size:16px; color:#111; }
+  #wx-draft .caret { display:inline-block; width:2px; height:18px; background:#07c160;
+    vertical-align:-3px; animation:caret 1s steps(1) infinite; }
+  @keyframes caret { 50%{opacity:0} }
+  #wx-inputbar .plus { width:28px; height:28px; border:1.6px solid #555; border-radius:50%;
+    flex:none; position:relative; }
+  #wx-inputbar .plus::before,#wx-inputbar .plus::after { content:""; position:absolute;
+    background:#555; left:50%; top:50%; }
+  #wx-inputbar .plus::before { width:13px; height:1.6px; transform:translate(-50%,-50%); }
+  #wx-inputbar .plus::after { width:1.6px; height:13px; transform:translate(-50%,-50%); }
+
+  /* ---------- 监控 App ---------- */
+  #sc-monitor { background:#0e0f13; color:#fff; }
+  #sc-monitor .navbar { color:#fff; }
+  #sc-monitor .navbar .sub { position:absolute; right:16px; font-size:12px; color:#6fd37a; font-weight:400; }
+  #mon-view { position:absolute; top:116px; left:14px; right:14px; height:250px;
+    border-radius:14px; overflow:hidden; background:#000; }
+  #mon-view canvas { width:100%; height:100%; display:block; }
+  #mon-view .rec { position:absolute; top:10px; left:12px; display:flex; align-items:center;
+    gap:6px; font-size:11px; color:#fff; letter-spacing:1px; }
+  #mon-view .rec i { width:8px; height:8px; border-radius:50%; background:#ff3b30;
+    animation:recb 1.4s infinite; }
+  @keyframes recb { 50%{opacity:.25} }
+  #mon-view .ts { position:absolute; top:10px; right:12px; font-size:12px; color:#fff;
+    font-family:"SF Mono",Menlo,monospace; text-shadow:0 1px 3px #000; }
+  #mon-view .offline { position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:8px; background:rgba(10,10,12,.55); }
+  #mon-view .offline .t1 { font-size:17px; font-weight:600; color:#e8e8ec; }
+  #mon-view .offline .t2 { font-size:13px; color:#9a9aa0; }
+  #mon-tabs { position:absolute; top:384px; left:14px; right:14px; display:flex; gap:10px; }
+  #mon-tabs .tab { flex:1; padding:12px 0; text-align:center; border-radius:12px;
+    background:#1a1c22; color:#8e8e96; font-size:15px; }
+  #mon-tabs .tab.on { background:#23262e; color:#fff; box-shadow:inset 0 0 0 1px #3a3e48; }
+  #mon-tabs .tab .dot { display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:#6fd37a; margin-right:6px; vertical-align:1px; }
+  #mon-tabs .tab.off .dot { background:#5a5a62; }
+  #mon-list { position:absolute; top:446px; left:14px; right:14px; font-size:13px; color:#7a7a82; }
+  #mon-list .row { display:flex; justify-content:space-between; padding:11px 4px;
+    border-bottom:.5px solid #1e2026; }
+
+  /* ---------- 设置 ---------- */
+  .scene.ios-set { background:#000; color:#fff; }
+  .ios-set .navbar { color:#fff; }
+  .ios-set .navbar .back { position:absolute; left:14px; color:#0a84ff; font-weight:400; font-size:17px; }
+  .ios-set .group { margin:26px 16px 0; background:#1c1c1e; border-radius:12px; overflow:hidden; }
+  .ios-set .cell { display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px; font-size:16px; border-bottom:.5px solid rgba(255,255,255,.08); }
+  .ios-set .cell:last-child { border-bottom:none; }
+  .ios-set .cell .v { color:#8e8e93; }
+  .ios-set .cell .check { color:#0a84ff; font-weight:700; width:20px; }
+  .ios-set .foot { margin:10px 32px 0; font-size:12.5px; color:#8e8e93; line-height:1.5; }
+
+  /* ---------- 照片 App（图库） ---------- */
+  #sc-photos { background:#000; color:#fff; }
+  #sc-photos .navbar { color:#fff; justify-content:flex-start; padding-left:20px;
+    font-size:22px; font-weight:700; }
+  #ph-grid { position:absolute; top:120px; left:2px; right:2px; display:grid;
+    grid-template-columns:repeat(3,1fr); gap:2px; }
+  #ph-grid .th { aspect-ratio:1; background:#161618; position:relative; overflow:hidden; }
+  #ph-grid .th canvas { width:100%; height:100%; display:block; }
+  #ph-grid .th .new { position:absolute; right:5px; top:5px; width:18px; height:18px;
+    background:#ff3b30; border-radius:50%; color:#fff; font-size:12px; font-weight:700;
+    display:none; align-items:center; justify-content:center; }
+  #ph-grid .th.hasnew .new { display:flex; }
+
+  /* ---------- 查找 ---------- */
+  #sc-findmy { background:#000; color:#fff; }
+  #fm-canvas { position:absolute; top:0; left:0; right:0; height:480px; width:100%; display:block; }
+  #fm-sheet { position:absolute; left:0; right:0; bottom:0; top:420px; background:#151517;
+    border-radius:16px 16px 0 0; padding:14px 18px; }
+  #fm-sheet .grip { width:38px; height:5px; border-radius:3px; background:#3a3a3e; margin:0 auto 12px; }
+  #fm-sheet h3 { font-size:15px; font-weight:600; color:#e8e8ec; margin-bottom:6px; }
+  .fm-dev { display:flex; align-items:center; gap:12px; padding:13px 2px;
+    border-bottom:.5px solid rgba(255,255,255,.08); }
+  .fm-dev .ic { width:36px; height:36px; border-radius:50%; background:#26262a;
+    display:flex; align-items:center; justify-content:center; }
+  .fm-dev .ic i { width:15px; height:22px; border:2px solid #8e8e93; border-radius:3.5px; display:block; }
+  .fm-dev .n { font-size:16px; }
+  .fm-dev .s { font-size:13px; color:#8e8e93; margin-top:2px; }
+  .fm-dev .s b { color:#ff453a; font-weight:600; }
+  .fm-dev .r { margin-left:auto; font-size:13px; color:#8e8e93; text-align:right; }
+
+  /* ---------- 结尾压暗 / 片名 ---------- */
+  #dim { position:absolute; inset:0; background:#000; opacity:0; z-index:970; pointer-events:none; }
+  #title-card { position:absolute; inset:0; z-index:975; display:flex; align-items:center;
+    justify-content:center; opacity:0; pointer-events:none; transition:opacity 1.2s; }
+  #title-card span { color:#8a8a90; font-size:15px; letter-spacing:14px; text-indent:14px; }
+  #title-card.show { opacity:1; }
+
+  /* ---------- 开播按钮 ---------- */
+  #start { position:absolute; inset:0; z-index:990; background:#000; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:18px; cursor:pointer; }
+  #start .t { color:#e8e8ec; font-size:17px; letter-spacing:8px; text-indent:8px; }
+  #start .s { color:#5a5a60; font-size:12px; letter-spacing:3px; }
+  #start .btn { margin-top:8px; width:64px; height:64px; border-radius:50%;
+    border:1px solid #3a3a3e; display:flex; align-items:center; justify-content:center; }
+  #start .btn i { display:block; width:0; height:0; border:9px solid transparent;
+    border-left:15px solid #e8e8ec; margin-left:5px; }
+  #start.hide { display:none; }
+
+  /* ---------- 控制台（手机外） ---------- */
+  #controls { position:fixed; left:0; right:0; bottom:14px; display:flex; justify-content:center;
+    gap:14px; align-items:center; color:#777; font-size:12px; z-index:1000;
+    font-family:Menlo,monospace; transition:opacity .3s; }
+  #controls.hide { opacity:0; pointer-events:none; }
+  #controls button { background:#161618; color:#bbb; border:1px solid #2c2c2e; border-radius:8px;
+    padding:6px 14px; font-size:12px; cursor:pointer; font-family:inherit; }
+  #controls button:hover { background:#222; }
+  #ctl-time { min-width:96px; text-align:center; }
+  #ctl-hint { color:#444; }
+
+  /* ---------- 26 键键盘 ---------- */
+  #kb { position:absolute; left:0; right:0; bottom:0; height:312px; background:#131315;
+    transform:translateY(102%); transition:transform .3s cubic-bezier(.3,.85,.3,1);
+    padding:6px 4px 26px; z-index:30; }
+  #sc-wechat.kb-on #kb { transform:translateY(0); }
+  #sc-wechat.kb-on #wx-inputbar { bottom:312px; }
+  #sc-wechat.kb-on #wx-msgs { bottom:368px; }
+  #kb .kb-ime { height:62px; padding:4px 14px 0; }
+  #kb #kb-pinyin { font-size:13px; color:#8e8e93; height:20px; letter-spacing:.5px; }
+  #kb #kb-cand { display:flex; gap:26px; align-items:baseline; padding-top:1px; min-height:30px; }
+  #kb #kb-cand .c1 { font-size:22px; color:#fff; }
+  #kb #kb-cand .c2 { font-size:17px; color:#c7c7cc; }
+  #kb #kb-cand .c3 { font-size:15px; color:#5e5e63; }
+  #wx-inputbar { transition:bottom .3s cubic-bezier(.3,.85,.3,1); }
+  #wx-msgs { transition:bottom .3s cubic-bezier(.3,.85,.3,1); }
+  #kb .row { display:flex; gap:5px; justify-content:center; margin-bottom:9px; padding:0 3px; }
+  #kb .key { position:relative; flex:1; max-width:36px; height:44px; background:#434345;
+    border-radius:6px; color:#fff; font-size:19px; line-height:44px; text-align:center;
+    box-shadow:0 1px 0 rgba(0,0,0,.5); user-select:none; text-transform:uppercase; }
+  #kb .key.wide { max-width:none; flex:1.55; font-size:14px; line-height:44px; color:#e8e8ec; }
+  #kb .key.space { flex:4.2; max-width:none; font-size:15px; color:#fff; }
+  #kb .key.send { background:#0a84ff; }
+  #kb .key.hit { background:#6e6e73; }
+  #kb .key.hit::after { content:attr(data-k); position:absolute; bottom:50px; left:50%;
+    transform:translateX(-50%); min-width:36px; height:48px; padding:0 6px;
+    background:#5a5a5e; border-radius:8px; font-size:26px; line-height:42px;
+    text-transform:uppercase; box-shadow:0 4px 14px rgba(0,0,0,.45); z-index:5; }
+</style>
+</head>
+<body>
+<div id="phone">
+  <div id="notch"></div>
+  <div id="statusbar">
+    <span id="sb-time">23:47</span>
+    <span id="sb-icons">
+      <span class="sb-signal"><i></i><i></i><i></i><i></i></span>
+      <span style="font-size:12px;letter-spacing:.5px">5G</span>
+      <span class="sb-batt"><i></i></span>
+    </span>
+  </div>
+
+  <!-- 锁屏 -->
+  <section class="scene" id="sc-lock">
+    <div class="lk-date" id="lk-date">11月25日 星期二</div>
+    <div class="lk-time" id="lk-time">23:47</div>
+    <div class="lk-hint">向上轻扫以解锁</div>
+    <div class="lk-btns">
+      <div class="lk-btn"><svg viewBox="0 0 24 24"><path d="M6 2h4l-2 7h4L8 22l2-9H6z"/></svg></div>
+      <div class="lk-btn"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="12" rx="3"/><path d="M17 11l4-2v8l-4-2"/></svg></div>
+    </div>
+  </section>
+
+  <!-- 照片查看器 -->
+  <section class="scene" id="sc-photo">
+    <canvas class="shot" id="ph-canvas" width="780" height="1688"></canvas>
+    <div class="ph-top"><span class="back">‹ 图库</span><span style="color:#0a84ff">编辑</span></div>
+    <div class="ph-meta"><div class="d" id="ph-date">11月25日</div><div class="t" id="ph-time">23:46</div></div>
+    <div class="ph-exif" id="ph-exif">
+      <div class="dev" id="exif-dev">小北的 iPhone</div>
+      <div class="row"><span>拍摄时间</span><b id="exif-time">2026年11月25日 23:52</b></div>
+      <div class="row"><span>镜头</span><b>广角摄像头 · 26mm f/1.8</b></div>
+      <div class="row"><span>参数</span><b>ISO 1600 · 1/17s · 闪光灯开</b></div>
+      <div class="row"><span>位置</span><b id="exif-loc">—</b></div>
+    </div>
+  </section>
+
+  <!-- 微信 -->
+  <section class="scene" id="sc-wechat">
+    <div class="navbar"><span class="back">‹</span><span>阿哲</span></div>
+    <div id="wx-msgs">
+      <div class="wx-time">23:41</div>
+      <div class="wx-msg l"><div class="av">哲</div><div class="wx-bub">今晚得加到很晚了 你先睡</div></div>
+      <div class="wx-msg r"><div class="av">北</div><div class="wx-bub">嗯嗯 别太辛苦</div></div>
+    </div>
+    <div id="wx-inputbar">
+      <div class="mic"></div>
+      <div id="wx-draft"></div>
+      <div class="plus"></div>
+    </div>
+    <div id="kb"></div>
+  </section>
+
+  <!-- 监控 -->
+  <section class="scene" id="sc-monitor">
+    <div class="navbar"><span>我的家</span><span class="sub" id="mon-sub">● 连接正常</span></div>
+    <div id="mon-view">
+      <canvas id="mon-canvas" width="724" height="500"></canvas>
+      <div class="rec"><i></i>LIVE</div>
+      <div class="ts" id="mon-ts">2026-11-25 23:50:12</div>
+      <div class="offline" id="mon-offline">
+        <div class="t1">设备离线</div>
+        <div class="t2">最后在线 23:31</div>
+      </div>
+    </div>
+    <div id="mon-tabs">
+      <div class="tab on" id="tab-living"><span class="dot"></span>客厅</div>
+      <div class="tab off" id="tab-hall"><span class="dot"></span>走廊</div>
+    </div>
+    <div id="mon-list">
+      <div class="row"><span>移动侦测</span><span>今天 0 条</span></div>
+      <div class="row"><span>存储状态</span><span>云端 · 正常</span></div>
+      <div class="row"><span>固件版本</span><span>v2.4.1</span></div>
+    </div>
+  </section>
+
+  <!-- 设置 · 关于本机 -->
+  <section class="scene ios-set" id="sc-about">
+    <div class="navbar"><span class="back">‹ 通用</span><span>关于本机</span></div>
+    <div class="group" style="margin-top:120px">
+      <div class="cell"><span>名称</span><span class="v" id="about-name">小北的 iPhone ›</span></div>
+      <div class="cell"><span>型号名称</span><span class="v">iPhone 15</span></div>
+      <div class="cell"><span>iOS 版本</span><span class="v">18.1.1</span></div>
+    </div>
+    <div class="group">
+      <div class="cell"><span>序列号</span><span class="v">F2LX8…Q9</span></div>
+      <div class="cell"><span>无线局域网地址</span><span class="v">A4:83:…:1C</span></div>
+    </div>
+  </section>
+
+  <!-- 设置 · 隔空投送 -->
+  <section class="scene ios-set" id="sc-airdrop">
+    <div class="navbar"><span class="back">‹ 通用</span><span>隔空投送</span></div>
+    <div class="group" style="margin-top:120px" id="ad-cells">
+      <div class="cell" data-k="off"><span>接收关闭</span><span class="check"></span></div>
+      <div class="cell" data-k="contacts"><span>仅限联系人</span><span class="check">✓</span></div>
+      <div class="cell" data-k="all"><span>所有人（10 分钟）</span><span class="check"></span></div>
+    </div>
+    <div class="foot">隔空投送可与附近的 Apple 设备共享照片、视频与文件。有效范围约 10 米。</div>
+  </section>
+
+  <!-- 照片 · 图库 -->
+  <section class="scene" id="sc-photos">
+    <div class="navbar"><span>图库</span></div>
+    <div id="ph-grid"></div>
+  </section>
+
+  <!-- 查找 -->
+  <section class="scene" id="sc-findmy">
+    <canvas id="fm-canvas" width="780" height="960"></canvas>
+    <div id="fm-sheet">
+      <div class="grip"></div>
+      <h3>设备（2）</h3>
+      <div id="fm-devs"></div>
+    </div>
+  </section>
+
+  <!-- AirDrop 横幅浮层 -->
+  <div id="ad-banner">
+    <div class="ad-row">
+      <div class="ad-icon"><i></i></div>
+      <div>
+        <div class="ad-tt" id="ad-title">"客厅"</div>
+        <div class="ad-sub">想要与您共享 1 张照片</div>
+      </div>
+      <div class="ad-thumb"></div>
+    </div>
+    <div class="ad-acts">
+      <button id="ad-decline">拒绝</button>
+      <button id="ad-accept">接受</button>
+    </div>
+  </div>
+
+  <div id="dim"></div>
+  <div id="title-card"><span>十米以内</span></div>
+  <div class="homebar"></div>
+
+  <!-- 开播 -->
+  <div id="start">
+    <div class="t">十米以内</div>
+    <div class="s">SCREENLIFE SHORT · 78s</div>
+    <div class="btn"><i></i></div>
+    <div class="s">点击播放 · 建议全屏录屏</div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="ctl-play">▶ 播放</button>
+  <span id="ctl-time">00:00 / 01:18</span>
+  <button id="ctl-re">↺ 重播</button>
+  <span id="ctl-hint">空格 播放/暂停 · R 重播 · F 全屏 · H 隐藏 · M 静音</span>
+</div>
+<script>
+"use strict";
+/* ================= 工具 ================= */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ================= 音效（WebAudio 合成） ================= */
+let AC=null, humNode=null, humGain=null, muted=false;
+function audio(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); } return AC; }
+function beep(freq,dur,type,gain,t0){
+  if(!AC||muted) return;
+  const o=AC.createOscillator(), g=AC.createGain(), t=AC.currentTime+(t0||0);
+  o.type=type||"sine"; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(gain||.08,t+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(AC.destination); o.start(t); o.stop(t+dur+.05);
+}
+function ding(pitch){ // 隔空投送提示音：双音，pitch<1 时降调失真
+  const p=pitch||1; beep(1318*p,.28,"sine",.07); beep(988*p,.4,"sine",.07,.14);
+}
+function tick(){ beep(1900,.03,"square",.018); }
+function pop(){ beep(520,.07,"triangle",.06); beep(880,.09,"triangle",.05,.03); }
+function buzz(){ beep(120,.5,"sawtooth",.05); }
+function humStart(){
+  if(!AC||muted) return; humStop();
+  const len=AC.sampleRate*1.2, buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*.5;
+  humNode=AC.createBufferSource(); humNode.buffer=buf; humNode.loop=true;
+  const f=AC.createBiquadFilter(); f.type="lowpass"; f.frequency.value=420;
+  humGain=AC.createGain(); humGain.gain.value=.028;
+  humNode.connect(f).connect(humGain).connect(AC.destination); humNode.start();
+}
+function humStop(){ if(humNode){ try{humNode.stop()}catch(e){} humNode=null; } }
+
+/* ================= Canvas 照片绘制 ================= */
+function noise(ctx,w,h,amt){
+  const img=ctx.getImageData(0,0,w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){ const n=(Math.random()-.5)*amt;
+    d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
+  ctx.putImageData(img,0,0);
+}
+function vignette(ctx,w,h,inner,alpha){
+  const g=ctx.createRadialGradient(w/2,h/2,inner,w/2,h/2,Math.max(w,h)*.75);
+  g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,"+alpha+")");
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+}
+function flash(ctx,w,h,cx,cy,r,alpha){
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0,"rgba(210,215,225,"+alpha+")"); g.addColorStop(1,"rgba(210,215,225,0)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+}
+
+/* 照片1：客厅（从阳台朝沙发，闪光灯直闪） */
+function paintLivingRoom(ctx,w,h){
+  ctx.fillStyle="#070708"; ctx.fillRect(0,0,w,h);
+  // 地板
+  ctx.fillStyle="#111114"; ctx.fillRect(0,h*.62,w,h*.38);
+  ctx.strokeStyle="rgba(255,255,255,.05)"; ctx.lineWidth=3;
+  for(let i=1;i<6;i++){ ctx.beginPath(); ctx.moveTo(w/2+(i-3)*70, h); ctx.lineTo(w/2+(i-3)*26, h*.62); ctx.stroke(); }
+  // 电视（挂在墙上的黑矩形，微微反光）
+  ctx.fillStyle="#0c0d10"; ctx.fillRect(w*.58,h*.30,w*.30,h*.20);
+  ctx.strokeStyle="rgba(255,255,255,.10)"; ctx.lineWidth=2; ctx.strokeRect(w*.58,h*.30,w*.30,h*.20);
+  flash(ctx,w,h,w*.60,h*.36,w*.16,.10);
+  // 沙发
+  ctx.fillStyle="#1b1c20"; rr(ctx,w*.10,h*.56,w*.42,h*.14,18); ctx.fill();
+  ctx.fillStyle="#232428"; rr(ctx,w*.10,h*.52,w*.42,h*.07,16); ctx.fill();
+  ctx.fillStyle="#191a1e"; rr(ctx,w*.13,h*.545,w*.17,h*.09,10); ctx.fill();
+  ctx.fillStyle="#1d1e22"; rr(ctx,w*.32,h*.545,w*.17,h*.09,10); ctx.fill();
+  // 茶几
+  ctx.fillStyle="#151619"; rr(ctx,w*.24,h*.72,w*.26,h*.05,8); ctx.fill();
+  ctx.fillStyle="#0d0e10"; ctx.fillRect(w*.27,h*.77,8,h*.06); ctx.fillRect(w*.45,h*.77,8,h*.06);
+  // 窗帘（画面最右侧，竖纹）——机位贴着阳台
+  for(let i=0;i<5;i++){ ctx.fillStyle=i%2?"#101116":"#14151a";
+    ctx.fillRect(w*.90+i*(w*.02),0,w*.02,h*.66); }
+  // 闪光中心 + 噪点 + 暗角
+  flash(ctx,w,h,w*.42,h*.55,w*.85,.16);
+  noise(ctx,w,h,46); vignette(ctx,w,h,h*.24,.88);
+}
+/* 照片2：走廊（卧室门开了一条缝） */
+function paintHallway(ctx,w,h){
+  ctx.fillStyle="#060607"; ctx.fillRect(0,0,w,h);
+  const vx=w*.56, vy=h*.42; // 灭点
+  // 走廊透视：左右墙、天花板、地板
+  ctx.fillStyle="#0e0e11";
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(vx-70,vy-160); ctx.lineTo(vx-70,vy+170); ctx.lineTo(0,h); ctx.closePath(); ctx.fill(); // 左墙
+  ctx.fillStyle="#0b0b0e";
+  ctx.beginPath(); ctx.moveTo(w,0); ctx.lineTo(vx+80,vy-160); ctx.lineTo(vx+80,vy+170); ctx.lineTo(w,h); ctx.closePath(); ctx.fill(); // 右墙
+  ctx.fillStyle="#121216";
+  ctx.beginPath(); ctx.moveTo(0,h); ctx.lineTo(vx-70,vy+170); ctx.lineTo(vx+80,vy+170); ctx.lineTo(w,h); ctx.closePath(); ctx.fill(); // 地板
+  // 尽头的卧室门：门板 + 一条门缝光
+  ctx.fillStyle="#16171b"; ctx.fillRect(vx-62,vy-160,134,330); // 门洞
+  ctx.fillStyle="#1e1f24"; ctx.fillRect(vx-58,vy-156,108,326);  // 门板（虚掩）
+  const g=ctx.createLinearGradient(vx+50,0,vx+72,0);
+  g.addColorStop(0,"rgba(255,244,214,0)"); g.addColorStop(.5,"rgba(255,244,214,.85)"); g.addColorStop(1,"rgba(255,244,214,0)");
+  ctx.fillStyle=g; ctx.fillRect(vx+50,vy-156,22,326); // 门缝
+  flash(ctx,w,h,vx+60,vy,w*.28,.10); // 门缝光的散射
+  // 踢脚线
+  ctx.strokeStyle="rgba(255,255,255,.06)"; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(0,h*.86); ctx.lineTo(vx-70,vy+150); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(w,h*.86); ctx.lineTo(vx+80,vy+150); ctx.stroke();
+  flash(ctx,w,h,w*.5,h*.5,w*.7,.10);
+  noise(ctx,w,h,52); vignette(ctx,w,h,h*.22,.9);
+}
+/* 照片3：她自己（从卧室斜上方俯拍，床上，手机亮着） */
+function paintBedroomSelfie(ctx,w,h){
+  ctx.fillStyle="#050506"; ctx.fillRect(0,0,w,h);
+  // 床（斜俯视，左下往右上）
+  ctx.save(); ctx.translate(w*.42,h*.60); ctx.rotate(-.16);
+  ctx.fillStyle="#141419"; rr(ctx,-w*.34,-h*.16,w*.66,h*.34,26); ctx.fill(); // 床体
+  ctx.fillStyle="#1a1a21"; rr(ctx,-w*.32,-h*.14,w*.62,h*.30,22); ctx.fill(); // 被子
+  // 被子上的人形隆起
+  ctx.fillStyle="#1f1f27";
+  ctx.beginPath(); ctx.ellipse(-w*.02,-h*.02,w*.17,h*.085,.08,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(w*.10,-h*.005,w*.10,h*.06,.1,0,Math.PI*2); ctx.fill();
+  // 手机小亮屏（她手里）——画面里唯一的光源
+  ctx.fillStyle="rgba(200,214,235,.9)"; rr(ctx,w*.045,-h*.075,w*.052,h*.028,6); ctx.fill();
+  ctx.restore();
+  // 手机光的散射
+  flash(ctx,w,h,w*.47,h*.545,w*.34,.22);
+  // 窗帘上沿（说明机位在房间斜上方高角）
+  ctx.fillStyle="#0c0c10"; ctx.fillRect(0,0,w,h*.09);
+  ctx.fillStyle="#0e0e13";
+  for(let i=0;i<8;i++) ctx.fillRect(i*(w/8)+3,h*.075,w/8-6,h*.05);
+  noise(ctx,w,h,58); vignette(ctx,w,h,h*.18,.92);
+}
+function rr(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* 监控画面 */
+function paintCamLive(ctx,w,h,t){
+  ctx.fillStyle="#0a0c0a"; ctx.fillRect(0,0,w,h);
+  // 夜视绿调的空客厅轮廓
+  ctx.strokeStyle="rgba(140,190,150,.20)"; ctx.lineWidth=2;
+  ctx.strokeRect(w*.58,h*.30,w*.30,h*.24);           // 电视
+  ctx.strokeRect(w*.10,h*.52,w*.40,h*.16);           // 沙发
+  ctx.beginPath(); ctx.moveTo(0,h*.68); ctx.lineTo(w,h*.66); ctx.stroke(); // 地板线
+  ctx.strokeRect(w*.86,0,w*.14,h*.6);                // 阳台门框
+  // 夜视噪点
+  const img=ctx.getImageData(0,0,w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){ const n=(Math.random()-.5)*30;
+    d[i]+=n*.6; d[i+1]+=n; d[i+2]+=n*.6; }
+  ctx.putImageData(img,0,0);
+  // 扫描线慢移
+  const y=(t*40)%h;
+  ctx.fillStyle="rgba(160,220,170,.05)"; ctx.fillRect(0,y,w,26);
+  vignette(ctx,w,h,h*.3,.55);
+}
+function paintCamStatic(ctx,w,h){
+  const img=ctx.createImageData(w,h), d=img.data;
+  for(let i=0;i<d.length;i+=4){ const v=Math.random()*255;
+    d[i]=v; d[i+1]=v; d[i+2]=v; d[i+3]=255; }
+  ctx.putImageData(img,0,0);
+  ctx.fillStyle="rgba(8,8,10,.55)"; ctx.fillRect(0,0,w,h);
+}
+
+/* 查找 · 暗色地图 */
+function paintFindMy(ctx,w,h){
+  ctx.fillStyle="#151a15"; ctx.fillRect(0,0,w,h);
+  // 街区
+  ctx.fillStyle="#1b211b";
+  for(let gx=0;gx<4;gx++) for(let gy=0;gy<5;gy++)
+    if((gx+gy)%3!==1) rr(ctx,gx*200+26,gy*200+30,150,146,10), ctx.fill();
+  // 道路
+  ctx.strokeStyle="#2c352c"; ctx.lineWidth=16;
+  for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(0,i*200+26); ctx.lineTo(w,i*200+26); ctx.stroke(); }
+  for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(i*210+40,0); ctx.lineTo(i*210+40,h); ctx.stroke(); }
+  ctx.strokeStyle="#3a4436"; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(0,430); ctx.bezierCurveTo(220,400,420,470,w,420); ctx.stroke();
+}
+</script>
+<script>
+"use strict";
+/* ================= 场景管理 ================= */
+const SCENES=["sc-lock","sc-photo","sc-wechat","sc-monitor","sc-about","sc-airdrop","sc-photos","sc-findmy"];
+let current=null;
+function show(id){
+  SCENES.forEach(s=>$(s).classList.remove("active"));
+  if(id) $(id).classList.add("active");
+  current=id;
+  $("statusbar").classList.toggle("light", id==="sc-wechat");
+  document.querySelector(".homebar").classList.toggle("dark", id==="sc-wechat");
+}
+/* 微信动作 */
+function wxSend(side,text){
+  const m=document.createElement("div"); m.className="wx-msg "+side;
+  m.innerHTML='<div class="av">'+(side==="l"?"哲":"北")+'</div><div class="wx-bub"></div>';
+  m.querySelector(".wx-bub").textContent=text;
+  $("wx-msgs").appendChild(m); pop(); return m;
+}
+function wxLocCard(){
+  const m=document.createElement("div"); m.className="wx-msg l";
+  m.innerHTML='<div class="av">哲</div><div class="wx-loc"><div class="map"><div class="pin"></div></div>'+
+    '<div class="txt"><div class="n">位置 · 共享实时位置</div><div class="s">距你 12.3 公里 · 星海写字楼</div></div></div>';
+  $("wx-msgs").appendChild(m); pop();
+}
+function wxTyping(on){
+  const old=document.querySelector(".wx-typing"); if(old) old.remove();
+  if(!on) return;
+  const m=document.createElement("div"); m.className="wx-msg l wx-typing";
+  m.innerHTML='<div class="av">哲</div><div class="wx-bub"><i></i><i></i><i></i></div>';
+  $("wx-msgs").appendChild(m);
+}
+/* AirDrop 横幅 */
+function adShow(name){ $("ad-title").textContent='"'+name+'"';
+  $("ad-accept").classList.remove("hit"); $("ad-decline").classList.remove("hit");
+  $("ad-banner").classList.add("show"); }
+function adHide(){ $("ad-banner").classList.remove("show"); }
+function adTap(which){ $(which==="accept"?"ad-accept":"ad-decline").classList.add("hit");
+  setTimeout(adHide,320); }
+/* 照片查看器 */
+const PHOTOS={
+  living:{painter:paintLivingRoom, date:"11月25日", time:"23:46"},
+  hall:{painter:paintHallway, date:"11月25日", time:"23:49"},
+  selfie:{painter:paintBedroomSelfie, date:"11月25日", time:"23:52"}
+};
+function showPhoto(key,withExif){
+  const p=PHOTOS[key], c=$("ph-canvas");
+  p.painter(c.getContext("2d"),c.width,c.height);
+  $("ph-date").textContent=p.date; $("ph-time").textContent=p.time;
+  $("ph-exif").classList.remove("show");
+  if(withExif){ $("exif-loc").textContent="家 · 距此处 0 米"; }
+  show("sc-photo");
+}
+/* 打字任务（逐字 + 键盘联动） */
+let typeJobs=[], flashJobs=[], kbTimers=[];
+function typeText(el,text,t0,dur,caret,pinyin){
+  typeJobs.push({el,text,t0,dur,last:0,caret,noTick:!!pinyin});
+  if(pinyin){ const n=pinyin.length;
+    for(let i=0;i<n;i++) flashJobs.push({t:t0+dur*(i+.35)/n, ch:pinyin[i], done:false});
+  }
+}
+function runTypeJobs(t){
+  typeJobs.forEach(j=>{
+    if(t<j.t0) return;
+    const n=clamp(Math.floor((t-j.t0)/j.dur*j.text.length),0,j.text.length);
+    if(n!==j.last){
+      j.el.innerHTML=j.text.slice(0,n).replace(/\n/g,"<br>")+(j.caret?'<span class="caret"></span>':'');
+      if(n>j.last&&!j.noTick) tick(); j.last=n;
+    }
+  });
+}
+function runFlashJobs(t){
+  flashJobs.forEach(j=>{ if(!j.done&&t>=j.t){ j.done=true; flashKey(j.ch); } });
+}
+/* 26 键键盘 */
+const KB_ROWS=[ ["q","w","e","r","t","y","u","i","o","p"],
+  ["a","s","d","f","g","h","j","k","l"],
+  ["⇧","z","x","c","v","b","n","m","⌫"],
+  ["123","空格","发送"] ];
+function buildKeyboard(){
+  const kb=$("kb"); kb.innerHTML="";
+  const ime=document.createElement("div"); ime.className="kb-ime";
+  ime.innerHTML='<div id="kb-pinyin"></div><div id="kb-cand">'+
+    '<span class="c1"></span><span class="c2"></span><span class="c3"></span></div>';
+  kb.appendChild(ime);
+  KB_ROWS.forEach(r=>{
+    const row=document.createElement("div"); row.className="row";
+    r.forEach(k=>{
+      const d=document.createElement("div");
+      const letter=/^[a-z]$/.test(k);
+      d.className="key"+(k==="空格"?" space":(k==="发送"?" wide send":(!letter?" wide":"")));
+      d.textContent=k; if(letter) d.dataset.k=k;
+      row.appendChild(d);
+    });
+    kb.appendChild(row);
+  });
+}
+function kbShow(){ $("sc-wechat").classList.add("kb-on"); }
+function kbHide(){ $("sc-wechat").classList.remove("kb-on"); }
+function flashKey(letter){
+  const key=document.querySelector('#kb .key[data-k="'+letter+'"]');
+  if(!key) return;
+  key.classList.add("hit");
+  beep(1400+Math.random()*600,.045,"square",.022);
+  kbTimers.push(setTimeout(()=>key.classList.remove("hit"),115));
+}
+/* IME 拼音候选栏打字 */
+let imeJobs=[], imeState=null;
+function imeClearBar(){
+  $("kb-pinyin").textContent="";
+  const c=$("kb-cand").children; c[0].textContent=""; c[1].textContent=""; c[2].textContent="";
+}
+function typeIME(el,t0,dur,chunks){
+  imeState={el,chunks,committed:""}; imeClearBar();
+  const total=chunks.reduce((a,c)=>a+c.py.join("").length,0)||1;
+  let li=0;
+  chunks.forEach((c,ci)=>{
+    const letters=c.py.join("");
+    for(let i=0;i<letters.length;i++){
+      const tt=t0+dur*(li+.35)/total;
+      flashJobs.push({t:tt,ch:letters[i],done:false});
+      imeJobs.push({t:tt,k:"py",ci,upto:i+1,done:false});
+      li++;
+    }
+    imeJobs.push({t:t0+dur*li/total,k:"commit",ci,done:false});
+  });
+}
+function runIMEJobs(t){
+  if(!imeState) return;
+  imeJobs.forEach(j=>{
+    if(j.done||t<j.t) return; j.done=true;
+    const st=imeState, c=st.chunks[j.ci];
+    if(j.k==="py"){
+      let left=j.upto; const parts=[];
+      for(const syl of c.py){
+        if(left<=0) break;
+        parts.push(syl.slice(0,Math.min(syl.length,left)));
+        left-=syl.length;
+      }
+      $("kb-pinyin").textContent=parts.join("'");
+      const cc=$("kb-cand").children;
+      cc[0].textContent=c.hz; cc[1].textContent=c.hz.slice(0,1); cc[2].textContent="…";
+    } else {
+      st.committed+=c.hz;
+      st.el.innerHTML=st.committed+'<span class="caret"></span>';
+      tick(); imeClearBar();
+    }
+  });
+}
+/* 图库网格 */
+function buildGrid(){
+  const g=$("ph-grid"); g.innerHTML="";
+  for(let i=0;i<12;i++){
+    const th=document.createElement("div"); th.className="th"; th.dataset.i=i;
+    if(i===0){ const cv=document.createElement("canvas"); cv.width=260; cv.height=260;
+      paintBedroomSelfie(cv.getContext("2d"),260,260); th.appendChild(cv);
+      th.classList.add("hasnew"); th.innerHTML+='<span class="new">1</span>'; }
+    else { const cv=document.createElement("canvas"); cv.width=260; cv.height=260;
+      const x=cv.getContext("2d"); x.fillStyle=["#17171b","#131316","#1a1a1f"][i%3];
+      x.fillRect(0,0,260,260); noise(x,260,260,24); th.appendChild(cv); }
+    g.appendChild(th);
+  }
+}
+/* 查找 · 设备行 */
+function buildFindMy(){
+  $("fm-devs").innerHTML="";
+  for(let i=0;i<2;i++){
+    const d=document.createElement("div"); d.className="fm-dev";
+    d.innerHTML='<div class="ic"><i></i></div><div><div class="n">小北的 iPhone</div>'+
+      '<div class="s">现在 · 与<b>你</b>同在</div></div><div class="r">距离<br><b style="color:#ff453a">0 米</b></div>';
+    $("fm-devs").appendChild(d);
+  }
+}
+/* 查找地图上的双点（每帧脉冲） */
+let fmT=0;
+function drawFindMyDots(t){
+  const c=$("fm-canvas"), ctx=c.getContext("2d");
+  paintFindMy(ctx,c.width,c.height);
+  const cx=c.width*.5, cy=c.height*.44;
+  const r=20+((t*1.2)%1)*70, a=1-((t*1.2)%1);
+  ctx.strokeStyle="rgba(48,209,88,"+(a*.5)+")"; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+  // 两个几乎重叠的点
+  [[-3,-2],[3,2]].forEach(o=>{
+    ctx.fillStyle="rgba(48,209,88,.30)";
+    ctx.beginPath(); ctx.arc(cx+o[0],cy+o[1],22,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#30d158";
+    ctx.beginPath(); ctx.arc(cx+o[0],cy+o[1],9,0,Math.PI*2); ctx.fill();
+  });
+  ctx.fillStyle="#fff"; ctx.font="600 24px -apple-system,'PingFang SC',sans-serif";
+  ctx.textAlign="center"; ctx.fillText("0 米",cx,cy-44);
+}
+
+/* ================= 时间线 ================= */
+const DUR=78;
+let clockT=0, clockSec=12; // 监控时间戳基准
+const EV=[]; const E=(t,fn)=>EV.push({t,fn,done:false});
+function setClock(s){ $("sb-time").textContent=s; $("lk-time").textContent=s; }
+
+E(0.0, ()=>{ show("sc-lock"); setClock("23:47"); });
+E(2.0, ()=>{ adShow("客厅"); ding(1); });
+E(4.5, ()=>adTap("accept"));
+E(5.0, ()=>showPhoto("living"));
+E(10.5,()=>{ show("sc-wechat"); });
+E(10.7,()=>kbShow());
+E(11.0,()=>typeIME($("wx-draft"),11.0,3.6,[
+  {py:["ni"],hz:"你"},{py:["gang"],hz:"刚"},{py:["shi","bu","shi"],hz:"是不是"},
+  {py:["gei"],hz:"给"},{py:["wo"],hz:"我"},{py:["tou","song"],hz:"投送"},
+  {py:["le"],hz:"了"},{py:["ge"],hz:"个"},{py:["zhao","pian"],hz:"照片"},{py:[],hz:"？"}
+]));
+E(14.9,()=>{ $("wx-draft").innerHTML=""; wxSend("r","你刚是不是给我投送了个照片？"); kbHide(); });
+E(15.3,()=>wxTyping(true));
+E(16.9,()=>{ wxTyping(false); wxSend("l","没有啊，我在公司加班"); });
+E(18.3,()=>wxLocCard());
+E(20.8,()=>{ adShow("客厅"); ding(1); });
+E(24.0,()=>adTap("accept"));
+E(24.4,()=>{ showPhoto("hall"); setClock("23:49"); });
+E(29.0,()=>{ show("sc-monitor"); humStart(); monMode="live"; });
+E(33.5,()=>{ monMode="offline"; $("mon-offline").style.display="flex";
+  $("tab-hall").classList.add("on"); $("tab-living").classList.remove("on");
+  $("tab-hall").classList.remove("off"); $("mon-sub").textContent="● 1 台设备离线";
+  $("mon-sub").style.color="#ff9f0a"; buzz(); });
+E(36.5,()=>{ monMode="live"; $("mon-offline").style.display="none";
+  $("tab-living").classList.add("on"); $("tab-hall").classList.add("off");
+  $("tab-hall").classList.remove("on"); });
+E(38.5,()=>{ adShow("小北的 iPhone"); ding(0.85); });
+E(41.5,()=>show("sc-about"));
+E(46.0,()=>adTap("decline"));
+E(48.0,()=>show("sc-airdrop"));
+E(49.5,()=>{ const cells=document.querySelectorAll("#ad-cells .cell");
+  cells.forEach(c=>c.querySelector(".check").textContent = c.dataset.k==="off"?"✓":"");
+  tick(); });
+E(51.5,()=>{ show("sc-wechat"); humStop(); });
+E(52.2,()=>wxSend("l","要不报警吧，我马上回来"));
+E(52.9,()=>kbShow());
+E(53.2,()=>typeIME($("wx-draft"),53.2,0.9,[{py:["hao"],hz:"好"}]));
+E(55.8,()=>kbHide());
+E(56.5,()=>{ buildGrid(); show("sc-photos"); setClock("23:52"); });
+E(60.0,()=>showPhoto("selfie",true));
+E(61.5,()=>$("ph-exif").classList.add("show"));
+E(68.0,()=>{ buildFindMy(); show("sc-findmy"); });
+E(73.0,()=>{ const d=$("dim"); d.style.transition="opacity 2.4s"; d.style.opacity="1"; humStop(); });
+E(75.5,()=>{ if(AC){ AC.suspend(); } });
+E(76.5,()=>$("title-card").classList.add("show"));
+E(78.0,()=>{ pause(true); });
+
+EV.sort((a,b)=>a.t-b.t);
+
+/* ================= 播放引擎 ================= */
+let playing=false, t=0, lastTs=null, monMode="off", mutedFlag=false;
+function monC(){ return $("mon-canvas").getContext("2d"); } // reset 后 DOM 重建，必须每次现取
+
+function frame(ts){
+  if(lastTs===null) lastTs=ts;
+  const dt=Math.min(.1,(ts-lastTs)/1000); lastTs=ts;
+  if(playing){
+    t+=dt;
+    EV.forEach(e=>{ if(!e.done&&t>=e.t){ e.done=true; e.fn(); } });
+    runTypeJobs(t);
+    runFlashJobs(t);
+    runIMEJobs(t);
+  }
+  if(current==="sc-monitor"&&monMode==="live"&&playing){
+    clockT+=dt;
+    if(clockT>0.9){ clockT=0; clockSec++;
+      $("mon-ts").textContent="2026-11-25 23:50:"+String(clockSec%60).padStart(2,"0"); }
+    paintCamLive(monC(),724,500,t);
+  } else if(current==="sc-monitor"&&monMode==="offline"&&playing){
+    if(Math.random()<.2) paintCamStatic(monC(),724,500);
+  }
+  if(current==="sc-findmy"&&playing){ fmT+=dt; drawFindMyDots(fmT); }
+  const mm=String(Math.floor(t/60)).padStart(2,"0"), ss=String(Math.floor(t%60)).padStart(2,"0");
+  $("ctl-time").textContent=mm+":"+ss+" / 01:18";
+  requestAnimationFrame(frame);
+}
+function play(){
+  if(t>=DUR) reset();
+  playing=true; lastTs=null;
+  if(AC&&AC.state==="suspended") AC.resume();
+  $("ctl-play").textContent="⏸ 暂停";
+}
+function pause(atEnd){
+  playing=false; $("ctl-play").textContent= atEnd?"↻ 重播":"▶ 播放";
+}
+/* 快照复位 */
+let snapshots={};
+function takeSnapshots(){ SCENES.concat(["ad-banner"]).forEach(s=>snapshots[s]=$(s).innerHTML); }
+function reset(){
+  playing=false; t=0; lastTs=null; monMode="off"; typeJobs=[]; flashJobs=[]; clockSec=12; fmT=0;
+  imeJobs=[]; imeState=null;
+  kbTimers.forEach(clearTimeout); kbTimers=[];
+  EV.forEach(e=>e.done=false);
+  SCENES.concat(["ad-banner"]).forEach(s=>$(s).innerHTML=snapshots[s]);
+  kbHide();
+  show(null); setClock("23:47");
+  $("dim").style.transition="none"; $("dim").style.opacity="0";
+  $("title-card").classList.remove("show");
+  humStop(); if(AC&&AC.state==="suspended") AC.resume();
+  $("ctl-play").textContent="▶ 播放";
+}
+
+/* ================= 控制 ================= */
+function fit(){
+  const s=Math.min((innerHeight-90)/844,(innerWidth-40)/390);
+  document.documentElement.style.setProperty("--s",s);
+}
+addEventListener("resize",fit);
+$("start").addEventListener("click",()=>{
+  audio(); $("start").classList.add("hide"); play();
+});
+$("ctl-play").addEventListener("click",()=>{ audio(); playing?pause():play(); });
+$("ctl-re").addEventListener("click",()=>{ audio(); reset(); play(); });
+addEventListener("keydown",e=>{
+  if(e.code==="Space"){ e.preventDefault(); audio();
+    if(!$("start").classList.contains("hide")){ $("start").classList.add("hide"); }
+    playing?pause():play(); }
+  else if(e.key==="r"||e.key==="R"){ audio(); reset(); play(); }
+  else if(e.key==="f"||e.key==="F"){ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen(); }
+  else if(e.key==="h"||e.key==="H"){ $("controls").classList.toggle("hide"); }
+  else if(e.key==="m"||e.key==="M"){ muted=!muted; if(muted)humStop(); }
+});
+buildKeyboard(); takeSnapshots(); fit(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
