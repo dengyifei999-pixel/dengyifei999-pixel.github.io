@@ -1,0 +1,9 @@
+{
+  "name": "within-ten-meters",
+  "version": "1.0.0",
+  "private": true,
+  "description": "《十米以内》手机桌面恐怖短片 · 高保真可播放原型",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}

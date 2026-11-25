@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桌面电影工作台</title>
+<link rel="stylesheet" href="workbench.css">
+</head>
+<body>
+<div id="topbar">
+  <span class="logo">桌面电影工作台</span>
+  <input type="text" id="script-name" value="十米以内" title="剧本名">
+  <button class="tbtn" id="btn-save">保存</button>
+  <button class="tbtn" id="btn-export">导出 JSON</button>
+  <button class="tbtn" id="btn-import">导入 JSON</button>
+  <input type="file" id="import-file" accept=".json" style="display:none">
+  <span class="sp"></span>
+  <button class="tbtn" id="btn-rec">🎬 录屏模式</button>
+</div>
+
+<div id="main">
+  <!-- 左：事件时间线 -->
+  <div class="col" id="col-left">
+    <div class="pane-head"><span>事件时间线</span><button id="btn-add-ev">＋ 添加事件</button></div>
+    <div id="ev-list"></div>
+  </div>
+
+  <!-- 中：预览 -->
+  <div class="col" id="col-mid">
+    <div id="stage">
+      <div id="phone">
+        <div id="notch"></div>
+        <div id="statusbar">
+          <span id="sb-time">23:47</span>
+          <span id="sb-icons">
+            <span class="sb-signal"><i></i><i></i><i></i><i></i></span>
+            <span style="font-size:12px;letter-spacing:.5px">5G</span>
+            <span class="sb-batt"><i></i></span>
+          </span>
+        </div>
+
+        <section class="scene" id="sc-lock">
+          <div class="lk-date" id="lk-date">11月25日 星期二</div>
+          <div class="lk-time" id="lk-time">23:47</div>
+          <div class="lk-hint">向上轻扫以解锁</div>
+          <div class="lk-btns">
+            <div class="lk-btn"><svg viewBox="0 0 24 24"><path d="M6 2h4l-2 7h4L8 22l2-9H6z"/></svg></div>
+            <div class="lk-btn"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="12" rx="3"/><path d="M17 11l4-2v8l-4-2"/></svg></div>
+          </div>
+        </section>
+
+        <section class="scene" id="sc-photo">
+          <canvas class="shot" id="ph-canvas" width="780" height="1688"></canvas>
+          <div class="ph-top"><span class="back">‹ 图库</span><span style="color:#0a84ff">编辑</span></div>
+          <div class="ph-meta"><div class="d" id="ph-date">11月25日</div><div class="t" id="ph-time">23:46</div></div>
+          <div class="ph-exif" id="ph-exif">
+            <div class="dev" id="exif-dev">小北的 iPhone</div>
+            <div class="row"><span>拍摄时间</span><b id="exif-time">2026年11月25日 23:52</b></div>
+            <div class="row"><span>镜头</span><b>广角摄像头 · 26mm f/1.8</b></div>
+            <div class="row"><span>参数</span><b>ISO 1600 · 1/17s · 闪光灯开</b></div>
+            <div class="row"><span>位置</span><b id="exif-loc">—</b></div>
+          </div>
+        </section>
+
+        <section class="scene" id="sc-wechat">
+          <div class="navbar"><span class="back">‹</span><span>阿哲</span></div>
+          <div id="wx-msgs">
+            <div class="wx-time">23:41</div>
+            <div class="wx-msg l"><div class="av">哲</div><div class="wx-bub">今晚得加到很晚了 你先睡</div></div>
+            <div class="wx-msg r"><div class="av">北</div><div class="wx-bub">嗯嗯 别太辛苦</div></div>
+          </div>
+          <div id="wx-inputbar">
+            <div class="mic"></div>
+            <div id="wx-draft"></div>
+            <div class="plus"></div>
+          </div>
+          <div id="kb"></div>
+        </section>
+
+        <section class="scene" id="sc-monitor">
+          <div class="navbar"><span>我的家</span><span class="sub" id="mon-sub">● 连接正常</span></div>
+          <div id="mon-view">
+            <canvas id="mon-canvas" width="724" height="500"></canvas>
+            <div class="rec"><i></i>LIVE</div>
+            <div class="ts" id="mon-ts">2026-11-25 23:50:12</div>
+            <div class="offline" id="mon-offline">
+              <div class="t1">设备离线</div>
+              <div class="t2">最后在线 23:31</div>
+            </div>
+          </div>
+          <div id="mon-tabs">
+            <div class="tab on" id="tab-living"><span class="dot"></span>客厅</div>
+            <div class="tab off" id="tab-hall"><span class="dot"></span>走廊</div>
+          </div>
+          <div id="mon-list">
+            <div class="row"><span>移动侦测</span><span>今天 0 条</span></div>
+            <div class="row"><span>存储状态</span><span>云端 · 正常</span></div>
+            <div class="row"><span>固件版本</span><span>v2.4.1</span></div>
+          </div>
+        </section>
+
+        <section class="scene ios-set" id="sc-about">
+          <div class="navbar"><span class="back">‹ 通用</span><span>关于本机</span></div>
+          <div class="group" style="margin-top:120px">
+            <div class="cell"><span>名称</span><span class="v" id="about-name">小北的 iPhone ›</span></div>
+            <div class="cell"><span>型号名称</span><span class="v">iPhone 15</span></div>
+            <div class="cell"><span>iOS 版本</span><span class="v">18.1.1</span></div>
+          </div>
+          <div class="group">
+            <div class="cell"><span>序列号</span><span class="v">F2LX8…Q9</span></div>
+            <div class="cell"><span>无线局域网地址</span><span class="v">A4:83:…:1C</span></div>
+          </div>
+        </section>
+
+        <section class="scene ios-set" id="sc-airdrop">
+          <div class="navbar"><span class="back">‹ 通用</span><span>隔空投送</span></div>
+          <div class="group" style="margin-top:120px" id="ad-cells">
+            <div class="cell" data-k="off"><span>接收关闭</span><span class="check"></span></div>
+            <div class="cell" data-k="contacts"><span>仅限联系人</span><span class="check">✓</span></div>
+            <div class="cell" data-k="all"><span>所有人（10 分钟）</span><span class="check"></span></div>
+          </div>
+          <div class="foot">隔空投送可与附近的 Apple 设备共享照片、视频与文件。有效范围约 10 米。</div>
+        </section>
+
+        <section class="scene" id="sc-photos">
+          <div class="navbar"><span>图库</span></div>
+          <div id="ph-grid"></div>
+        </section>
+
+        <section class="scene" id="sc-findmy">
+          <canvas id="fm-canvas" width="780" height="960"></canvas>
+          <div id="fm-sheet">
+            <div class="grip"></div>
+            <h3>设备（2）</h3>
+            <div id="fm-devs"></div>
+          </div>
+        </section>
+
+        <div id="ad-banner">
+          <div class="ad-row">
+            <div class="ad-icon"><i></i></div>
+            <div>
+              <div class="ad-tt" id="ad-title">"客厅"</div>
+              <div class="ad-sub">想要与您共享 1 张照片</div>
+            </div>
+            <div class="ad-thumb"></div>
+          </div>
+          <div class="ad-acts">
+            <button id="ad-decline">拒绝</button>
+            <button id="ad-accept">接受</button>
+          </div>
+        </div>
+
+        <div id="dim"></div>
+        <div id="title-card"><span>十米以内</span></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <div id="transport">
+      <button id="tp-play">▶ 播放</button>
+      <span id="tp-time">00:00.0 / 01:18</span>
+      <input type="range" id="tp-slider" min="0" max="78" step="0.05" value="0">
+    </div>
+  </div>
+
+  <!-- 右：属性 + 素材 -->
+  <div class="col" id="col-right">
+    <div class="pane-head"><span>事件属性</span></div>
+    <div id="prop-panel"><div class="empty">在左侧选择一个事件进行编辑</div></div>
+    <div id="asset-panel">
+      <div class="pane-head" style="border:none;padding:0 0 2px">
+        <span>素材库</span><button id="btn-upload">＋ 上传图片</button>
+      </div>
+      <input type="file" id="upload-file" accept="image/*" style="display:none">
+      <div id="asset-grid"></div>
+      <div style="font-size:10.5px;color:#5a5a60;margin-top:6px">上传的素材仅保存在本次会话；导出 JSON 不含图片。</div>
+    </div>
+  </div>
+</div>
+
+<div id="mobile-tabs">
+  <button data-pane="timeline" class="on">☰ 时间线</button>
+  <button data-pane="props">✎ 属性 / 素材</button>
+</div>
+
+<script src="engine.js"></script>
+<script src="script-default.js"></script>
+<script src="workbench.js"></script>
+</body>
+</html>
