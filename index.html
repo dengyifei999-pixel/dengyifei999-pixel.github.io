@@ -15,6 +15,7 @@
   <button class="tbtn" id="btn-import">导入 JSON</button>
   <input type="file" id="import-file" accept=".json" style="display:none">
   <span class="sp"></span>
+  <button class="tbtn" id="btn-ai">✨ AI 写剧本</button>
   <button class="tbtn" id="btn-rec">🎬 录屏模式</button>
 </div>
 
@@ -181,6 +182,37 @@
 <div id="mobile-tabs">
   <button data-pane="timeline" class="on">☰ 时间线</button>
   <button data-pane="props">✎ 属性 / 素材</button>
+</div>
+
+<!-- AI 写剧本 -->
+<div id="ai-mask">
+  <div id="ai-modal">
+    <div class="ai-head"><span>✨ AI 写剧本</span><button id="ai-close">✕</button></div>
+    <div class="ai-body">
+      <label>故事想法（一句话也行，越具体越好）</label>
+      <textarea id="ai-idea" placeholder="例：深夜女生独自在家，外卖 App 显示骑手距她 0 米，可她没点过外卖……"></textarea>
+      <div class="ai-row">
+        <div>
+          <label>时长（秒）</label>
+          <input type="number" id="ai-dur" value="60" min="15" max="300">
+        </div>
+        <div>
+          <label>氛围</label>
+          <select id="ai-mood">
+            <option>恐怖</option><option>悬疑</option><option>温情</option>
+            <option>日常纪实</option><option>黑色幽默</option>
+          </select>
+        </div>
+      </div>
+      <label>Moonshot API Key（可选，仅存在本机浏览器）</label>
+      <input type="password" id="ai-key" placeholder="sk-... 不填则用「复制提示词」方式">
+      <div id="ai-status"></div>
+    </div>
+    <div class="ai-foot">
+      <button class="tbtn" id="ai-copy">📋 复制提示词（发给 Kimi）</button>
+      <button class="tbtn primary" id="ai-gen">✨ 直接生成</button>
+    </div>
+  </div>
 </div>
 
 <script src="engine.js"></script>
