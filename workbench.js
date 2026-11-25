@@ -276,3 +276,109 @@ addEventListener("keydown",e=>{
   requestAnimationFrame(()=>{ fit(); fit(); });
   (function loop(ts){ Player.frame(ts); requestAnimationFrame(loop); })(0);
 })();
+
+/* ================= AI 写剧本 ================= */
+const AI_SYS = `你是「桌面电影」（screenlife）编剧。用户给你故事想法，你输出一个 JSON 剧本，驱动一个手机桌面电影播放器。只输出 JSON，不要任何解释、不要 markdown 代码围栏。
+
+JSON 格式：
+{"name":"片名","duration":总秒数,"events":[{"t":秒数,"action":"动作名","params":{...}}]}
+
+可用动作与参数（严格只用这些）：
+- show_scene {scene:"lock"|"photo"|"wechat"|"monitor"|"about"|"airdrop"|"photos"|"findmy"} 切换场景：锁屏/照片查看器/微信/监控App/关于本机/隔空投送设置/相册图库/查找
+- set_clock {text:"23:47"} 设置状态栏与锁屏时间
+- airdrop_banner {device:"设备名",pitch:1} 隔空投送横幅（pitch<1 提示音降调，更诡异）
+- airdrop_tap {choice:"accept"|"decline"} 点按横幅上的按钮
+- show_photo {asset:"living"|"hall"|"selfie",time:"23:46"} 查看照片（living=客厅闪光灯/hall=走廊门缝/selfie=卧室俯拍）
+- exif_show {} 照片底部弹出 EXIF 信息面板
+- wx_send {side:"l"|"r",text:"内容"} 微信消息，l=对方，r=自己
+- wx_typing {on:true} 对方正在输入（on:false 停止）
+- wx_loc {} 微信位置共享卡片
+- kb_show {} / kb_hide {} 升起/收起 26 键键盘
+- ime_type {dur:秒,chunks:[{"py":"ni hao","hz":"你好"}]} 模拟拼音打字：键盘按键逐个亮起、拼音显示在候选栏、整词上屏。chunks 里 py 用空格分音节
+- monitor {mode:"live"|"offline"} 监控画面实时/设备离线
+- ad_set {mode:"off"|"contacts"|"all"} 隔空投送接收设置切换
+- photos_grid {} 打开相册图库（首图是新照片带红点）
+- findmy_show {} 打开「查找」，两台设备距离 0 米
+- dim {} 屏幕缓缓压暗
+- title {} 片名卡淡入
+- sound {name:"hum_start"|"hum_stop"|"buzz"|"silence"} 监控底噪起/停、故障嗡鸣、全场静音
+
+编剧要求：
+1. 用日常细节制造代入感：真实时间线（状态栏时间随剧情推进）、生活化对白、App 的真实使用逻辑。
+2. 恐怖/悬疑靠「异常的日常」而非惊吓：不该出现的照片、距离 0 米的设备、离线又上线的摄像头。
+3. 节奏：每个事件间隔 1.5-4 秒给观众反应时间；打字用 ime_type 而不是直接 wx_send 出现草稿。
+4. 结构：开场 3 秒内建立场景 → 第一次异常 → 通讯求证 → 异常升级 → 日常防御动作失效 → 最终揭示 → dim + title 收尾。
+5. duration 与用户要求一致，最后一个事件不晚于 duration-1。events 按 t 升序。`;
+
+(function aiInit(){
+  const mask=document.getElementById("ai-mask");
+  const keyInput=document.getElementById("ai-key");
+  const status=document.getElementById("ai-status");
+  try{ keyInput.value=localStorage.getItem("screenlife-ai-key")||""; }catch(e){}
+
+  function setStatus(txt,cls){ status.textContent=txt||""; status.className=cls||""; }
+  function userPrompt(){
+    const idea=document.getElementById("ai-idea").value.trim();
+    const dur=parseInt(document.getElementById("ai-dur").value,10)||60;
+    const mood=document.getElementById("ai-mood").value;
+    return "故事想法："+(idea||"（自由发挥一个日常恐怖小故事）")+"\n氛围："+mood+"\n总时长："+dur+" 秒\n请输出剧本 JSON。";
+  }
+  function applyScript(obj){
+    if(!obj||!Array.isArray(obj.events)||!obj.events.length) throw new Error("bad");
+    obj.duration=+obj.duration||60;
+    obj.events.forEach(e=>{ e.t=+e.t||0; e.params=e.params||{}; });
+    script=obj; selIdx=-1;
+    slider.max=script.duration;
+    commit(true); renderProps();
+    mask.classList.remove("show");
+  }
+
+  document.getElementById("btn-ai").addEventListener("click",()=>{
+    mask.classList.add("show"); setStatus("");
+  });
+  document.getElementById("ai-close").addEventListener("click",()=>mask.classList.remove("show"));
+  mask.addEventListener("click",e=>{ if(e.target===mask) mask.classList.remove("show"); });
+  keyInput.addEventListener("change",()=>{
+    try{ localStorage.setItem("screenlife-ai-key",keyInput.value.trim()); }catch(e){}
+  });
+
+  document.getElementById("ai-copy").addEventListener("click",()=>{
+    const full=AI_SYS+"\n\n"+userPrompt();
+    const done=()=>setStatus("✓ 提示词已复制。发给 Kimi，把返回的 JSON 用顶栏「导入 JSON」导入即可。","ok");
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(full).then(done,()=>{ fallbackCopy(full); done(); });
+    } else { fallbackCopy(full); done(); }
+  });
+  function fallbackCopy(txt){
+    const ta=document.createElement("textarea"); ta.value=txt;
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    ta.remove();
+  }
+
+  document.getElementById("ai-gen").addEventListener("click",async ()=>{
+    const key=keyInput.value.trim();
+    if(!key){ setStatus("未填 API Key：请点左侧「复制提示词」发给 Kimi，再导入 JSON；或填入 Key 直接生成。","err"); return; }
+    const btn=document.getElementById("ai-gen");
+    btn.disabled=true; setStatus("AI 正在写剧本…（约 10-30 秒）","");
+    try{
+      const res=await fetch("https://api.moonshot.cn/v1/chat/completions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+        body:JSON.stringify({
+          model:"moonshot-v1-8k", temperature:0.8,
+          messages:[{role:"system",content:AI_SYS},{role:"user",content:userPrompt()}]
+        })
+      });
+      if(!res.ok) throw new Error("HTTP "+res.status+"："+(await res.text()).slice(0,160));
+      const data=await res.json();
+      let txt=(data.choices&&data.choices[0]&&data.choices[0].message.content||"").trim();
+      txt=txt.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
+      const m=txt.match(/\{[\s\S]*\}/); if(m) txt=m[0];
+      applyScript(JSON.parse(txt));
+    }catch(err){
+      setStatus("生成失败："+err.message+"（可改用「复制提示词」方式）","err");
+    }
+    btn.disabled=false;
+  });
+})();
